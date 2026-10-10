@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GutFeeling - Celiac Dating App</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            beige: { 50: '#FAF8F5', 100: '#F5F2EB', 200: '#EAE4D6', 300: '#DDD5C1', 400: '#C9BEA3' },
+            matteRed: { DEFAULT: '#C85A54', hover: '#B34A44' },
+            matteGreen: { DEFAULT: '#5B8C5A', hover: '#4C7A4B' },
+            matteBrown: { DEFAULT: '#4A3525', dark: '#3E2723', light: '#6D5440' },
+            softBlack: '#222222',
+          },
+          fontFamily: { sans: ['Inter', 'sans-serif'], heading: ['Outfit', 'sans-serif'] }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body { background-color: #F5F2EB; color: #222222; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+    .card-shadow { box-shadow: 0 10px 25px -5px rgba(62,39,35,0.08), 0 8px 10px -6px rgba(62,39,35,0.05); }
+    .btn-shadow { box-shadow: 0 4px 12px rgba(62,39,35,0.15); }
+    .swipe-card { transition: transform 0.25s ease, opacity 0.25s ease; will-change: transform, opacity; user-select: none; -webkit-user-select: none; }
+    .swipe-card.dragging { transition: none !important; }
+    .stamp-like { border: 4px solid #5B8C5A; color: #5B8C5A; transform: rotate(-15deg); }
+    .stamp-pass { border: 4px solid #C85A54; color: #C85A54; transform: rotate(15deg); }
+    @keyframes pulseHeart { 0%,100% { transform: scale(1); } 50% { transform: scale(1.15); } }
+    .animate-pulse-heart { animation: pulseHeart 1.5s infinite ease-in-out; }
+    .field { width: 100%; padding: 0.65rem 0.75rem; border-radius: 0.75rem; background: #F5F2EB; border: 1px solid #DDD5C1; font-size: 0.875rem; color: #222; }
+    .field:focus { outline: none; box-shadow: 0 0 0 2px #4A3525; }
+    .lbl { display: block; font-weight: 600; color: #4A3525; font-size: 0.8rem; margin-bottom: 0.25rem; }
+    .btn { width: 100%; padding: 0.75rem; border-radius: 0.75rem; font-weight: 700; font-size: 0.9rem; transition: background-color .2s; }
+    .btn:disabled { opacity: 0.6; }
+    .btn-brown { background: #4A3525; color: #FAF8F5; }
+    .btn-brown:hover { background: #3E2723; }
+    .btn-green { background: #5B8C5A; color: #fff; }
+    .btn-green:hover { background: #4C7A4B; }
+    .btn-red { background: #C85A54; color: #fff; }
+    .btn-red:hover { background: #B34A44; }
+    .btn-light { background: #EAE4D6; color: #4A3525; }
+    .btn-light:hover { background: #DDD5C1; }
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: #F5F2EB; }
+    ::-webkit-scrollbar-thumb { background: #C9BEA3; border-radius: 10px; }
+  </style>
+</head>
+<body class="bg-beige-100 text-softBlack min-h-screen overflow-x-hidden">
+
+  <!-- LOADING -->
+  <div id="loadingScreen" class="w-full min-h-screen flex items-center justify-center text-matteBrown/60">
+    <i class="fa-solid fa-circle-notch fa-spin text-2xl"></i>
+  </div>
+
+  <!-- SETUP NEEDED (shown until Supabase keys are pasted in) -->
+  <div id="setupScreen" class="hidden w-full min-h-screen flex items-center justify-center p-6">
+    <div class="max-w-md bg-beige-50 border border-beige-300 rounded-2xl p-6 card-shadow text-sm">
+      <h1 class="font-heading text-xl font-bold text-matteBrown mb-2">Almost there</h1>
+      <p class="mb-3">The app is installed but not connected to a database yet.</p>
+      <p>Open <code class="bg-beige-200 px-1 rounded">index.html</code>, paste your Supabase URL and key near the top of the script, and upload it again. The README has the full steps.</p>
+    </div>
+  </div>
+
+  <!-- AUTH -->
+  <section id="authScreen" class="hidden w-full max-w-md mx-auto min-h-screen px-5 py-10 flex flex-col items-center justify-center">
+    <div class="flex items-center space-x-2 mb-2">
+      <svg viewBox="0 0 100 100" class="w-12 h-12 drop-shadow-sm">
+        <path d="M 50 88 C 20 68, 5 48, 5 30 C 5 13, 20 5, 35 5 C 43 5, 48 10, 50 15 C 52 10, 57 5, 65 5 C 80 5, 95 13, 95 30 C 95 48, 80 68, 50 88 Z" fill="#C85A54"/>
+        <g fill="#F5F2EB" stroke="#F5F2EB" stroke-width="1">
+          <path d="M 50 22 L 50 72" stroke-width="3" stroke-linecap="round"/>
+          <ellipse cx="44" cy="30" rx="5" ry="3" transform="rotate(-30 44 30)"/><ellipse cx="56" cy="30" rx="5" ry="3" transform="rotate(30 56 30)"/>
+          <ellipse cx="43" cy="40" rx="6" ry="3.5" transform="rotate(-30 43 40)"/><ellipse cx="57" cy="40" rx="6" ry="3.5" transform="rotate(30 57 40)"/>
+          <ellipse cx="42" cy="50" rx="6" ry="3.5" transform="rotate(-30 42 50)"/><ellipse cx="58" cy="50" rx="6" ry="3.5" transform="rotate(30 58 50)"/>
+          <ellipse cx="44" cy="60" rx="5" ry="3" transform="rotate(-30 44 60)"/><ellipse cx="56" cy="60" rx="5" ry="3" transform="rotate(30 56 60)"/>
+          <circle cx="50" cy="22" r="3"/>
+        </g>
+        <line x1="24" y1="74" x2="76" y2="22" stroke="#3E2723" stroke-width="7" stroke-linecap="round"/>
+      </svg>
+      <span class="font-heading text-3xl font-bold tracking-tight text-matteBrown-dark">GutFeeling</span>
+    </div>
+    <p class="text-sm text-matteBrown/70 mb-6 text-center">Dating for the coeliac and gluten-free community.<br>18+ only.</p>
+
+    <div class="w-full bg-beige-50 rounded-2xl p-5 border border-beige-200 card-shadow">
+      <div id="authTabs" class="flex mb-4 bg-beige-200 rounded-xl p-1 text-sm font-semibold">
+        <button id="tabSignin" type="button" onclick="setAuthMode('signin')">Log in</button>
+        <button id="tabSignup" type="button" onclick="setAuthMode('signup')">Sign up</button>
+      </div>
+
+      <div id="googleBlock">
+        <button type="button" onclick="googleLogin()" class="btn btn-light flex items-center justify-center gap-2">
+          <i class="fa-brands fa-google"></i> Continue with Google
+        </button>
+        <div class="flex items-center gap-3 my-4 text-xs text-matteBrown/50">
+          <div class="flex-1 h-px bg-beige-300"></div><span>or use email</span><div class="flex-1 h-px bg-beige-300"></div>
+        </div>
+      </div>
+
+      <form id="authForm" onsubmit="submitAuth(event)" class="space-y-3">
+        <div id="emailRow">
+          <label class="lbl" for="authEmail">Email</label>
+          <input id="authEmail" type="email" autocomplete="email" class="field">
+        </div>
+        <div>
+          <label class="lbl" for="authPass">Password</label>
+          <input id="authPass" type="password" minlength="8" required class="field" placeholder="At least 8 characters">
+        </div>
+        <label id="ageRow" class="hidden items-start gap-2 text-xs text-softBlack/80">
+          <input type="checkbox" id="authAge" class="mt-0.5 accent-matteGreen">
+          <span>I am 18 or older and agree to the <a href="privacy.html" target="_blank" class="underline">privacy policy</a>.</span>
+        </label>
+        <button id="authSubmit" type="submit" class="btn btn-brown">Log in</button>
+        <button id="forgotBtn" type="button" onclick="forgotPassword()" class="w-full text-xs underline text-matteBrown/70">Forgot password?</button>
+      </form>
+      <p id="authMsg" class="text-xs mt-3 text-center"></p>
+    </div>
+  </section>
+
+  <!-- PROFILE (create / edit) -->
+  <section id="profileScreen" class="hidden w-full max-w-md mx-auto min-h-screen px-5 py-8 flex flex-col">
+    <div class="flex justify-between items-center mb-4">
+      <h2 id="profileTitle" class="font-heading text-2xl font-bold text-matteBrown">Create your profile</h2>
+      <button id="profileCancel" type="button" onclick="cancelProfileEdit()" class="hidden text-matteBrown/60 hover:text-matteBrown text-xl"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <form id="profileForm" onsubmit="saveProfile(event)" class="space-y-4 text-sm bg-beige-50 p-5 rounded-2xl border border-beige-200 card-shadow">
+      <div>
+        <label class="lbl" for="pPhoto">Photo</label>
+        <div class="flex items-center gap-3">
+          <img id="pPhotoPreview" alt="" class="w-16 h-16 rounded-xl object-cover bg-beige-200 border border-beige-300">
+          <input id="pPhoto" type="file" accept="image/*" class="text-xs flex-1">
+        </div>
+        <p class="text-[11px] text-matteBrown/60 mt-1">Hidden location data is removed from your photo when you upload.</p>
+      </div>
+      <div>
+        <label class="lbl" for="pName">First name</label>
+        <input id="pName" type="text" maxlength="40" required class="field">
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="lbl" for="pBirth">Date of birth</label>
+          <input id="pBirth" type="date" required class="field">
+        </div>
+        <div>
+          <label class="lbl" for="pGender">Gender</label>
+          <select id="pGender" class="field">
+            <option value="woman">Woman</option><option value="man">Man</option><option value="nonbinary">Non-binary</option>
+          </select>
+        </div>
+      </div>
+      <p id="birthNote" class="text-[11px] text-matteBrown/60 -mt-2">You must be 18 or older. Your birth date is never shown, only your age. It cannot be changed later.</p>
+      <div>
+        <label class="lbl" for="pCity">City</label>
+        <input id="pCity" type="text" maxlength="60" required class="field" placeholder="e.g. Perth">
+      </div>
+      <div>
+        <label class="lbl" for="pStatus">Coeliac status</label>
+        <select id="pStatus" class="field">
+          <option>Diagnosed Celiac</option><option>Strictly Gluten Free</option><option>Wheat Allergy</option><option>Gluten Sensitive</option>
+        </select>
+      </div>
+      <div>
+        <label class="lbl" for="pKitchen">Kitchen</label>
+        <select id="pKitchen" class="field">
+          <option>100% dedicated GF home</option><option>Shared kitchen, strict protocol</option><option>Transitioning to GF home</option>
+        </select>
+      </div>
+      <div>
+        <label class="lbl" for="pBio">Bio</label>
+        <textarea id="pBio" rows="3" maxlength="300" class="field" placeholder="A few lines about you"></textarea>
+      </div>
+      <div>
+        <label class="lbl" for="pSpot">Favourite safe gluten-free spot</label>
+        <input id="pSpot" type="text" maxlength="80" class="field">
+      </div>
+      <button id="pSave" type="submit" class="btn btn-green">Save profile</button>
+      <button type="button" onclick="signOut()" id="profileSignOut" class="w-full text-xs underline text-matteBrown/70">Sign out</button>
+    </form>
+  </section>
+
+  <!-- APP -->
+  <div id="appScreen" class="hidden w-full min-h-screen flex flex-col items-center justify-between">
+
+    <header class="w-full max-w-md px-5 py-4 flex justify-between items-center bg-beige-100/90 backdrop-blur-md sticky top-0 z-30 border-b border-beige-200">
+      <button onclick="openAccount()" class="w-10 h-10 rounded-full bg-beige-200 text-matteBrown flex items-center justify-center transition-transform active:scale-95" title="Account">
+        <i class="fa-solid fa-user text-lg"></i>
+      </button>
+      <div class="flex items-center space-x-2 cursor-pointer" onclick="switchTab('cards')">
+        <svg viewBox="0 0 100 100" class="w-9 h-9 drop-shadow-sm">
+          <path d="M 50 88 C 20 68, 5 48, 5 30 C 5 13, 20 5, 35 5 C 43 5, 48 10, 50 15 C 52 10, 57 5, 65 5 C 80 5, 95 13, 95 30 C 95 48, 80 68, 50 88 Z" fill="#C85A54"/>
+          <g fill="#F5F2EB" stroke="#F5F2EB" stroke-width="1">
+            <path d="M 50 22 L 50 72" stroke-width="3" stroke-linecap="round"/>
+            <ellipse cx="44" cy="30" rx="5" ry="3" transform="rotate(-30 44 30)"/><ellipse cx="56" cy="30" rx="5" ry="3" transform="rotate(30 56 30)"/>
+            <ellipse cx="43" cy="40" rx="6" ry="3.5" transform="rotate(-30 43 40)"/><ellipse cx="57" cy="40" rx="6" ry="3.5" transform="rotate(30 57 40)"/>
+            <ellipse cx="42" cy="50" rx="6" ry="3.5" transform="rotate(-30 42 50)"/><ellipse cx="58" cy="50" rx="6" ry="3.5" transform="rotate(30 58 50)"/>
+            <ellipse cx="44" cy="60" rx="5" ry="3" transform="rotate(-30 44 60)"/><ellipse cx="56" cy="60" rx="5" ry="3" transform="rotate(30 56 60)"/>
+            <circle cx="50" cy="22" r="3"/>
+          </g>
+          <line x1="24" y1="74" x2="76" y2="22" stroke="#3E2723" stroke-width="7" stroke-linecap="round"/>
+        </svg>
+        <span class="font-heading text-2xl font-bold tracking-tight text-matteBrown-dark">GutFeeling</span>
+      </div>
+      <button onclick="openFilters()" class="w-10 h-10 rounded-full bg-beige-200 text-matteBrown flex items-center justify-center transition-transform active:scale-95" title="Filters">
+        <i class="fa-solid fa-sliders text-lg"></i>
+      </button>
+    </header>
+
+    <main class="w-full max-w-md flex-1 flex flex-col justify-between p-4 relative overflow-hidden">
+
+      <!-- DISCOVER -->
+      <div id="cardsView" class="w-full flex flex-col justify-between items-center flex-1">
+        <div id="cardStack" class="relative w-full h-[520px] max-h-[68vh] my-auto flex items-center justify-center"></div>
+        <div class="w-full flex justify-center items-center space-x-6 py-4">
+          <button onclick="triggerSwipe('left')" class="w-16 h-16 rounded-full bg-matteRed text-white flex items-center justify-center text-2xl btn-shadow transition-transform active:scale-90 hover:bg-matteRed-hover" title="Pass">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+          <button onclick="reportCurrent()" class="w-12 h-12 rounded-full bg-beige-200 text-matteBrown flex items-center justify-center text-lg btn-shadow transition-transform active:scale-90 hover:bg-beige-300" title="Report or block">
+            <i class="fa-solid fa-flag"></i>
+          </button>
+          <button onclick="triggerSwipe('right')" class="w-16 h-16 rounded-full bg-matteGreen text-white flex items-center justify-center text-2xl btn-shadow transition-transform active:scale-90 hover:bg-matteGreen-hover" title="Like">
+            <i class="fa-solid fa-heart"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- MATCHES -->
+      <div id="matchesView" class="hidden w-full flex-1 flex-col bg-beige-50 rounded-2xl p-4 card-shadow border border-beige-200 overflow-y-auto">
+        <h2 class="font-heading text-xl font-bold text-matteBrown mb-4 flex items-center gap-2">
+          <i class="fa-solid fa-heart-circle-check text-matteGreen"></i> Your Matches
+        </h2>
+        <div id="matchesList" class="space-y-3"></div>
+      </div>
+
+      <!-- CHAT -->
+      <div id="chatView" class="hidden w-full flex-col bg-beige-50 rounded-2xl card-shadow border border-beige-200 overflow-hidden h-[calc(100vh-190px)]">
+        <div class="flex items-center gap-3 p-3 border-b border-beige-200">
+          <button onclick="switchTab('matches')" class="text-matteBrown w-8 h-8" title="Back"><i class="fa-solid fa-chevron-left"></i></button>
+          <img id="chatAvatar" alt="" class="w-9 h-9 rounded-full object-cover border border-beige-300">
+          <div id="chatName" class="font-heading font-bold text-matteBrown flex-1 truncate"></div>
+          <button onclick="reportChat()" class="text-matteBrown/70 w-8 h-8" title="Report or block"><i class="fa-solid fa-flag"></i></button>
+        </div>
+        <div id="chatMsgs" class="flex-1 overflow-y-auto p-3 space-y-2"></div>
+        <form onsubmit="sendMsg(event)" class="p-3 border-t border-beige-200 flex gap-2">
+          <input id="chatInput" type="text" maxlength="1000" autocomplete="off" placeholder="Say hello" class="field flex-1">
+          <button type="submit" class="w-11 h-11 rounded-xl bg-matteGreen text-white" title="Send"><i class="fa-solid fa-paper-plane"></i></button>
+        </form>
+      </div>
+    </main>
+
+    <nav class="w-full max-w-md bg-beige-200/90 backdrop-blur-md border-t border-beige-300 px-6 py-2 flex justify-around items-center sticky bottom-0 z-30">
+      <button id="tabCardsBtn" onclick="switchTab('cards')">
+        <i class="fa-solid fa-layer-group text-xl mb-1"></i><span>Discover</span>
+      </button>
+      <button id="tabMatchesBtn" onclick="switchTab('matches')">
+        <div class="relative">
+          <i class="fa-solid fa-comments text-xl mb-1"></i>
+          <span id="matchBadge" class="hidden absolute -top-1 -right-3 bg-matteRed text-white text-[10px] min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center font-bold">0</span>
+        </div>
+        <span>Matches</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- MODAL: Filters -->
+  <div id="filterModal" class="fixed inset-0 bg-softBlack/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center hidden opacity-0 transition-opacity duration-300">
+    <div class="bg-beige-50 w-full max-w-md rounded-t-3xl sm:rounded-2xl p-6 border border-beige-300 card-shadow max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center mb-5 border-b border-beige-200 pb-3">
+        <h3 class="font-heading text-xl font-bold text-matteBrown">Discovery Settings</h3>
+        <button onclick="closeModal('filterModal')" class="text-matteBrown/60 hover:text-matteBrown text-xl"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="space-y-5 text-sm">
+        <label class="flex items-center justify-between">
+          <span><span class="font-semibold text-matteBrown block">Only my city</span><span class="text-xs text-matteBrown/70">Off means worldwide.</span></span>
+          <input type="checkbox" id="fSameCity" class="w-5 h-5 accent-matteGreen">
+        </label>
+        <div>
+          <label class="lbl" for="fGender">Show me</label>
+          <select id="fGender" class="field">
+            <option value="everyone">Everyone</option><option value="woman">Women</option><option value="man">Men</option><option value="nonbinary">Non-binary</option>
+          </select>
+        </div>
+        <div>
+          <label class="lbl">Age range</label>
+          <div class="flex items-center gap-2">
+            <input id="fMin" type="number" min="18" max="99" class="field"><span>to</span><input id="fMax" type="number" min="18" max="99" class="field">
+          </div>
+        </div>
+        <div>
+          <label class="lbl" for="fStatus">Dietary status</label>
+          <select id="fStatus" class="field">
+            <option value="any">Any</option><option>Diagnosed Celiac</option><option>Strictly Gluten Free</option><option>Wheat Allergy</option><option>Gluten Sensitive</option>
+          </select>
+        </div>
+        <button onclick="applyFilters()" class="btn btn-brown">Apply</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Account -->
+  <div id="accountModal" class="fixed inset-0 bg-softBlack/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center hidden opacity-0 transition-opacity duration-300">
+    <div class="bg-beige-50 w-full max-w-md rounded-t-3xl sm:rounded-2xl p-6 border border-beige-300 card-shadow max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center mb-5 border-b border-beige-200 pb-3">
+        <h3 class="font-heading text-xl font-bold text-matteBrown">Account</h3>
+        <button onclick="closeModal('accountModal')" class="text-matteBrown/60 hover:text-matteBrown text-xl"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="space-y-3 text-sm">
+        <p id="accountEmail" class="text-xs text-matteBrown/70 break-all"></p>
+        <button onclick="closeModal('accountModal'); openProfileForm(true)" class="btn btn-light">Edit profile</button>
+        <label class="flex items-center justify-between p-3 bg-beige-100 rounded-xl border border-beige-200">
+          <span class="font-semibold text-matteBrown">Show my profile to others</span>
+          <input type="checkbox" id="accVisible" class="w-5 h-5 accent-matteGreen" onchange="toggleVisible(this.checked)">
+        </label>
+        <a href="privacy.html" target="_blank" class="block text-center text-xs underline text-matteBrown/70 py-1">Privacy policy</a>
+        <button onclick="signOut()" class="btn btn-brown">Sign out</button>
+        <button onclick="deleteAccount()" class="btn btn-red">Delete my account</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Report / Block -->
+  <div id="safetyModal" class="fixed inset-0 bg-softBlack/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center hidden opacity-0 transition-opacity duration-300">
+    <div class="bg-beige-50 w-full max-w-md rounded-t-3xl sm:rounded-2xl p-6 border border-beige-300 card-shadow max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center mb-5 border-b border-beige-200 pb-3">
+        <h3 class="font-heading text-xl font-bold text-matteBrown">Report or block <span id="safetyName"></span></h3>
+        <button onclick="closeModal('safetyModal')" class="text-matteBrown/60 hover:text-matteBrown text-xl"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="space-y-3 text-sm">
+        <div>
+          <label class="lbl" for="reportReason">Reason</label>
+          <select id="reportReason" class="field">
+            <option>Fake profile or spam</option><option>Harassment or abuse</option><option>Appears to be under 18</option><option>Inappropriate photos</option><option>Other</option>
+          </select>
+        </div>
+        <textarea id="reportDetails" rows="3" maxlength="400" class="field" placeholder="Details (optional)"></textarea>
+        <button onclick="submitReport()" class="btn btn-brown">Send report</button>
+        <button onclick="blockUser()" class="btn btn-red">Block this person</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- OVERLAY: It's a Match -->
+  <div id="matchOverlay" class="fixed inset-0 bg-matteBrown/90 backdrop-blur-md z-50 flex flex-col items-center justify-center p-6 text-center hidden opacity-0 transition-opacity duration-300">
+    <div class="relative mb-6">
+      <div class="w-24 h-24 rounded-full border-4 border-matteGreen overflow-hidden inline-block shadow-lg">
+        <img id="matchUserImg" src="" alt="" class="w-full h-full object-cover">
+      </div>
+      <div class="w-20 h-20 rounded-full border-4 border-beige-100 overflow-hidden inline-block -ml-8 shadow-lg">
+        <img id="currentUserImg" src="" alt="" class="w-full h-full object-cover">
+      </div>
+      <div class="absolute -bottom-2 right-1/2 translate-x-1/2 bg-matteGreen text-white p-2 rounded-full text-lg animate-pulse-heart"><i class="fa-solid fa-heart"></i></div>
+    </div>
+    <h2 class="font-heading text-3xl font-extrabold text-beige-100 mb-2">It's a Match!</h2>
+    <p id="matchText" class="text-beige-200 text-sm max-w-xs mb-8"></p>
+    <div class="w-full max-w-xs space-y-3">
+      <button onclick="openChatFromMatch()" class="btn btn-green">Send a Message</button>
+      <button onclick="closeMatchOverlay()" class="btn btn-light">Keep Swiping</button>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div id="toast" class="fixed top-20 left-1/2 -translate-x-1/2 z-[60] bg-softBlack/90 text-beige-100 text-xs px-4 py-2.5 rounded-full shadow-lg transition-all duration-300 -translate-y-10 opacity-0 pointer-events-none flex items-center gap-2 max-w-[90vw]">
+    <i class="fa-solid fa-circle-check text-matteGreen"></i><span id="toastMsg"></span>
+  </div>
+
+  <script>
+    // ============================================================
+    // 1) PASTE YOUR SUPABASE DETAILS HERE (see README.md)
+    // ============================================================
+    const SUPABASE_URL = 'https://afabsnwfdarbsfirghqx.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_3jzBk8niilt2J9EHNP7LOg_eYgAvDxy';
+    // ============================================================
+
+    const configured = !SUPABASE_URL.includes('YOUR_') && !SUPABASE_ANON_KEY.includes('YOUR_');
+    const sb = configured ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
+    // ---------- helpers ----------
+    const $ = id => document.getElementById(id);
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const PLACEHOLDER = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#EAE4D6"/><circle cx="50" cy="40" r="18" fill="#C9BEA3"/><rect x="20" y="64" width="60" height="30" rx="15" fill="#C9BEA3"/></svg>');
+    const PHOTO_PREFIX = configured ? SUPABASE_URL.replace(/\/$/, '') + '/storage/v1/object/public/photos/' : '';
+    // Only ever show images that live in our own photo bucket.
+    const safeImg = u => (u && PHOTO_PREFIX && u.startsWith(PHOTO_PREFIX)) ? u : PLACEHOLDER;
+    const redirectUrl = () => location.origin + location.pathname;
+    const ageFrom = d => { const b = new Date(d), n = new Date(); let a = n.getFullYear() - b.getFullYear(); const m = n.getMonth() - b.getMonth(); if (m < 0 || (m === 0 && n.getDate() < b.getDate())) a--; return a; };
+
+    const SCREENS = ['loadingScreen', 'setupScreen', 'authScreen', 'profileScreen', 'appScreen'];
+    function showScreen(id) { SCREENS.forEach(s => $(s).classList.toggle('hidden', s !== id)); window.scrollTo(0, 0); }
+
+    function showToast(msg) {
+      const t = $('toast');
+      $('toastMsg').textContent = msg;
+      t.classList.remove('opacity-0', '-translate-y-10');
+      t.classList.add('opacity-100', 'translate-y-0');
+      clearTimeout(showToast._t);
+      showToast._t = setTimeout(() => { t.classList.remove('opacity-100', 'translate-y-0'); t.classList.add('opacity-0', '-translate-y-10'); }, 2600);
+    }
+    function openModal(id) { const m = $(id); m.classList.remove('hidden'); setTimeout(() => m.classList.remove('opacity-0'), 10); }
+    function closeModal(id) { const m = $(id); m.classList.add('opacity-0'); setTimeout(() => m.classList.add('hidden'), 300); }
+
+    // ---------- state ----------
+    let session = null, me = null, deck = [], idx = 0, busy = false, matches = [];
+    let bootedFor = null, authMode = 'signin', editing = false;
+    let chat = null, chatChannel = null, seenMsgs = new Set(), safetyTarget = null, matchedProfile = null;
+    const DEFAULT_FILTERS = { sameCity: false, gender: 'everyone', minAge: 18, maxAge: 70, status: 'any' };
+    let filters = loadFilters();
+    function loadFilters() { try { return { ...DEFAULT_FILTERS, ...JSON.parse(localStorage.getItem('gf_filters') || '{}') }; } catch (e) { return { ...DEFAULT_FILTERS }; } }
+    function saveFilters() { try { localStorage.setItem('gf_filters', JSON.stringify(filters)); } catch (e) { /* ignore */ } }
+
+    // ============================================================
+    // AUTH
+    // ============================================================
+    function setAuthMode(mode) {
+      authMode = mode;
+      const signup = mode === 'signup', newpass = mode === 'newpass';
+      const tab = on => 'flex-1 py-2 rounded-lg ' + (on ? 'bg-matteBrown text-beige-50' : 'text-matteBrown');
+      $('tabSignin').className = tab(mode === 'signin');
+      $('tabSignup').className = tab(signup);
+      $('authTabs').classList.toggle('hidden', newpass);
+      $('googleBlock').classList.toggle('hidden', newpass);
+      $('emailRow').classList.toggle('hidden', newpass);
+      $('ageRow').classList.toggle('hidden', !signup);
+      $('ageRow').classList.toggle('flex', signup);
+      $('forgotBtn').classList.toggle('hidden', mode !== 'signin');
+      $('authEmail').required = !newpass;
+      $('authAge').required = signup;
+      $('authPass').autocomplete = (signup || newpass) ? 'new-password' : 'current-password';
+      $('authSubmit').textContent = newpass ? 'Set new password' : signup ? 'Create account' : 'Log in';
+      authMessage('');
+    }
+    function authMessage(text, ok) {
+      const el = $('authMsg');
+      el.textContent = text;
+      el.className = 'text-xs mt-3 text-center ' + (ok ? 'text-matteGreen' : 'text-matteRed');
+    }
+
+    async function submitAuth(e) {
+      e.preventDefault();
+      const email = $('authEmail').value.trim(), password = $('authPass').value;
+      const btn = $('authSubmit'); btn.disabled = true; authMessage('');
+      try {
+        if (authMode === 'newpass') {
+          const { error } = await sb.auth.updateUser({ password });
+          if (error) throw error;
+          const { data } = await sb.auth.getSession();
+          setAuthMode('signin');
+          if (data.session) { bootedFor = null; boot(data.session); }
+        } else if (authMode === 'signup') {
+          const { data, error } = await sb.auth.signUp({ email, password, options: { emailRedirectTo: redirectUrl() } });
+          if (error) throw error;
+          if (!data.session) authMessage('Check your email and click the confirmation link, then log in.', true);
+        } else {
+          const { error } = await sb.auth.signInWithPassword({ email, password });
+          if (error) throw error;
+        }
+      } catch (err) {
+        authMessage(err.message || 'Something went wrong.');
+      } finally { btn.disabled = false; }
+    }
+
+    async function googleLogin() {
+      const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: redirectUrl() } });
+      if (error) authMessage(error.message);
+    }
+
+    async function forgotPassword() {
+      const email = $('authEmail').value.trim();
+      if (!email) { authMessage('Enter your email first.'); return; }
+      const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: redirectUrl() });
+      if (error) authMessage(error.message);
+      else authMessage('If that email has an account, a reset link is on its way.', true);
+    }
+
+    async function signOut() {
+      closeModal('accountModal');
+      await sb.auth.signOut({ scope: 'local' });
+      teardown();
+      showScreen('authScreen');
+      setAuthMode('signin');
+    }
+
+    function teardown() {
+      closeChat();
+      session = null; me = null; deck = []; idx = 0; matches = []; bootedFor = null;
+    }
+
+    if (configured) {
+      sb.auth.onAuthStateChange((event, sess) => {
+        // Run outside the callback so we never block the auth library.
+        setTimeout(() => {
+          if (event === 'PASSWORD_RECOVERY') { session = sess; setAuthMode('newpass'); showScreen('authScreen'); return; }
+          if (!sess) { teardown(); showScreen('authScreen'); if (authMode !== 'signup') setAuthMode('signin'); return; }
+          session = sess;
+          if (authMode === 'newpass') return;
+          if (bootedFor !== sess.user.id) boot(sess);
+        }, 0);
+      });
+    }
+
+    async function boot(sess) {
+      bootedFor = sess.user.id;
+      const { data, error } = await sb.from('profiles').select('*').eq('id', sess.user.id).maybeSingle();
+      if (error) { showToast('Could not load your profile. Please refresh.'); bootedFor = null; return; }
+      if (!data) { openProfileForm(false); return; }
+      me = data;
+      enterApp();
+    }
+
+    async function enterApp() {
+      showScreen('appScreen');
+      switchTab('cards');
+      await Promise.all([loadDeck(), loadMatches()]);
+    }
+
+    // ============================================================
+    // PROFILE
+    // ============================================================
+    function openProfileForm(edit) {
+      editing = edit;
+      const maxBirth = new Date(); maxBirth.setFullYear(maxBirth.getFullYear() - 18);
+      $('pBirth').max = maxBirth.toISOString().slice(0, 10);
+      $('profileTitle').textContent = edit ? 'Edit profile' : 'Create your profile';
+      $('profileCancel').classList.toggle('hidden', !edit);
+      $('profileSignOut').classList.toggle('hidden', edit);
+      $('pBirth').disabled = edit;
+      $('birthNote').classList.toggle('hidden', edit);
+      $('pPhoto').value = '';
+      if (edit && me) {
+        $('pName').value = me.name; $('pBirth').value = me.birthdate; $('pGender').value = me.gender;
+        $('pCity').value = me.city; $('pStatus').value = me.celiac_status; $('pKitchen').value = me.kitchen;
+        $('pBio').value = me.bio || ''; $('pSpot').value = me.favorite_spot || '';
+        $('pPhotoPreview').src = safeImg(me.photo_url);
+      } else {
+        $('profileForm').reset();
+        $('pPhotoPreview').src = PLACEHOLDER;
+      }
+      showScreen('profileScreen');
+    }
+    function cancelProfileEdit() { showScreen('appScreen'); }
+
+    $('pPhoto').addEventListener('change', () => {
+      const f = $('pPhoto').files[0];
+      if (f) $('pPhotoPreview').src = URL.createObjectURL(f);
+    });
+
+    // Re-draws the photo on a canvas: shrinks it and strips hidden location data.
+    async function resizeImage(file, max = 1000) {
+      let bmp;
+      try { bmp = await createImageBitmap(file); } catch (e) { throw new Error('That photo format is not supported. Try a JPG or PNG.'); }
+      const scale = Math.min(1, max / Math.max(bmp.width, bmp.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(bmp.width * scale); c.height = Math.round(bmp.height * scale);
+      c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+      return new Promise((res, rej) => c.toBlob(b => b ? res(b) : rej(new Error('Could not process photo.')), 'image/jpeg', 0.85));
+    }
+
+    async function saveProfile(e) {
+      e.preventDefault();
+      const btn = $('pSave'); btn.disabled = true; btn.textContent = 'Saving...';
+      try {
+        const uid = session.user.id;
+        const birth = editing ? me.birthdate : $('pBirth').value;
+        if (!birth || ageFrom(birth) < 18) throw new Error('You must be 18 or older to use GutFeeling.');
+
+        let photo_url = me ? me.photo_url : null;
+        let oldPhoto = null;
+        const file = $('pPhoto').files[0];
+        if (file) {
+          const blob = await resizeImage(file);
+          const path = uid + '/' + Date.now() + '.jpg';
+          const up = await sb.storage.from('photos').upload(path, blob, { contentType: 'image/jpeg' });
+          if (up.error) throw up.error;
+          oldPhoto = photo_url;
+          photo_url = sb.storage.from('photos').getPublicUrl(path).data.publicUrl;
+        }
+        if (!photo_url) throw new Error('Please add a photo.');
+
+        const row = {
+          name: $('pName').value.trim(), gender: $('pGender').value, city: $('pCity').value.trim(),
+          celiac_status: $('pStatus').value, kitchen: $('pKitchen').value,
+          bio: $('pBio').value.trim(), favorite_spot: $('pSpot').value.trim(), photo_url
+        };
+        let res;
+        if (editing) res = await sb.from('profiles').update(row).eq('id', uid).select().single();
+        else res = await sb.from('profiles').insert({ id: uid, birthdate: birth, ...row }).select().single();
+        if (res.error) throw res.error;
+        me = res.data;
+
+        if (oldPhoto && oldPhoto.startsWith(PHOTO_PREFIX)) sb.storage.from('photos').remove([oldPhoto.slice(PHOTO_PREFIX.length)]);
+        showToast('Profile saved');
+        enterApp();
+      } catch (err) {
+        showToast(err.message || 'Could not save profile');
+      } finally { btn.disabled = false; btn.textContent = 'Save profile'; }
+    }
+
+    // ============================================================
+    // ACCOUNT
+    // ============================================================
+    function openAccount() {
+      $('accountEmail').textContent = session && session.user.email ? 'Signed in as ' + session.user.email : '';
+      $('accVisible').checked = !!(me && me.is_visible);
+      openModal('accountModal');
+    }
+    async function toggleVisible(on) {
+      const { error } = await sb.from('profiles').update({ is_visible: on }).eq('id', me.id);
+      if (error) { showToast(error.message); $('accVisible').checked = !on; return; }
+      me.is_visible = on;
+      showToast(on ? 'Your profile is visible' : 'Your profile is hidden');
+    }
+    async function deleteAccount() {
+      if (!confirm('Delete your account and all your data? This cannot be undone.')) return;
+      try {
+        if (me && me.photo_url && me.photo_url.startsWith(PHOTO_PREFIX)) await sb.storage.from('photos').remove([me.photo_url.slice(PHOTO_PREFIX.length)]);
+        const { error } = await sb.rpc('delete_my_account');
+        if (error) throw error;
+        closeModal('accountModal');
+        await sb.auth.signOut({ scope: 'local' });
+        teardown();
+        showScreen('authScreen'); setAuthMode('signin');
+        showToast('Your account has been deleted');
+      } catch (err) { showToast(err.message || 'Could not delete account'); }
+    }
+
+    // ============================================================
+    // DISCOVER (swipe deck)
+    // ============================================================
+    async function loadDeck() {
+      let q = sb.from('discover').select('*').limit(40);
+      if (filters.gender !== 'everyone') q = q.eq('gender', filters.gender);
+      q = q.gte('age', filters.minAge).lte('age', filters.maxAge);
+      if (filters.status !== 'any') q = q.eq('celiac_status', filters.status);
+      if (filters.sameCity && me) q = q.ilike('city', me.city.replace(/[\\%_]/g, '\\$&'));
+      const { data, error } = await q;
+      if (error) { showToast(error.message); deck = []; } else deck = data || [];
+      idx = 0; busy = false;
+      renderDeck();
+    }
+
+    function cardEl(p, top) {
+      const el = document.createElement('div');
+      el.className = 'swipe-card absolute w-full h-full bg-beige-50 rounded-3xl overflow-hidden card-shadow border border-beige-200 flex flex-col ' + (top ? 'z-20' : 'z-10 scale-95 opacity-80 translate-y-3');
+      el.dataset.top = top ? '1' : '';
+      el.innerHTML = `
+        <div class="relative w-full h-3/5 bg-beige-300 shrink-0">
+          <img src="${esc(safeImg(p.photo_url))}" alt="${esc(p.name)}" draggable="false" class="w-full h-full object-cover pointer-events-none">
+          <div class="absolute inset-0 bg-gradient-to-t from-softBlack/70 via-transparent to-transparent"></div>
+          <div class="stamp-like absolute top-6 left-6 px-4 py-1 rounded-lg text-lg font-extrabold uppercase tracking-wider opacity-0 transition-opacity">LIKE</div>
+          <div class="stamp-pass absolute top-6 right-6 px-4 py-1 rounded-lg text-lg font-extrabold uppercase tracking-wider opacity-0 transition-opacity">PASS</div>
+          <div class="absolute bottom-3 left-4 right-4 text-white">
+            <div class="flex items-baseline flex-wrap gap-2">
+              <h2 class="font-heading text-2xl font-bold">${esc(p.name)}, ${esc(p.age)}</h2>
+              <span class="text-xs bg-softBlack/40 px-2 py-0.5 rounded-full backdrop-blur-sm"><i class="fa-solid fa-location-dot text-xs mr-1"></i>${esc(p.city)}</span>
+            </div>
+          </div>
+        </div>
+        <div class="p-4 flex-1 flex flex-col gap-2 min-h-0 overflow-hidden">
+          <div class="flex flex-wrap gap-1.5">
+            <span class="px-2.5 py-1 bg-matteGreen/10 text-matteGreen border border-matteGreen/30 rounded-full text-[11px] font-semibold flex items-center gap-1"><i class="fa-solid fa-shield-halved text-[10px]"></i> ${esc(p.celiac_status)}</span>
+            <span class="px-2.5 py-1 bg-matteBrown/10 text-matteBrown border border-matteBrown/20 rounded-full text-[11px] font-medium flex items-center gap-1"><i class="fa-solid fa-utensils text-[10px]"></i> ${esc(p.kitchen)}</span>
+          </div>
+          <p class="text-xs text-softBlack/80 line-clamp-3 leading-relaxed">${esc(p.bio)}</p>
+          ${p.favorite_spot ? `
+          <div class="bg-beige-100 p-2.5 rounded-xl border border-beige-200 flex items-center gap-2 mt-auto">
+            <div class="w-7 h-7 rounded-lg bg-matteBrown/10 text-matteBrown flex items-center justify-center text-xs shrink-0"><i class="fa-solid fa-store"></i></div>
+            <div class="overflow-hidden">
+              <p class="text-[10px] text-matteBrown/70 uppercase font-bold tracking-wider">Safe GF Spot</p>
+              <p class="text-xs font-semibold text-softBlack truncate">${esc(p.favorite_spot)}</p>
+            </div>
+          </div>` : ''}
+        </div>`;
+      return el;
+    }
+
+    function renderDeck() {
+      const stack = $('cardStack');
+      stack.innerHTML = '';
+      if (idx >= deck.length) {
+        stack.innerHTML = `
+          <div class="text-center p-8 bg-beige-50 rounded-2xl border border-beige-200 card-shadow max-w-xs my-auto">
+            <div class="w-16 h-16 bg-beige-200 rounded-full flex items-center justify-center text-matteBrown text-2xl mx-auto mb-4"><i class="fa-solid fa-wheat-awn-circle-exclamation"></i></div>
+            <h3 class="font-heading text-lg font-bold text-matteBrown mb-2">No one new right now</h3>
+            <p class="text-xs text-softBlack/70 mb-4">Check back soon, or widen your filters.</p>
+            <div class="flex gap-2 justify-center">
+              <button onclick="loadDeck()" class="px-4 py-2.5 bg-matteBrown text-beige-50 font-semibold rounded-xl text-xs">Refresh</button>
+              <button onclick="openFilters()" class="px-4 py-2.5 bg-beige-200 text-matteBrown font-semibold rounded-xl text-xs">Filters</button>
+            </div>
+          </div>`;
+        return;
+      }
+      if (deck[idx + 1]) stack.appendChild(cardEl(deck[idx + 1], false));
+      const top = cardEl(deck[idx], true);
+      stack.appendChild(top);
+      attachDrag(top);
+    }
+
+    function attachDrag(card) {
+      let active = false, startX = 0, startY = 0, dx = 0;
+      const like = card.querySelector('.stamp-like'), pass = card.querySelector('.stamp-pass');
+      card.style.touchAction = 'pan-y';
+      card.addEventListener('pointerdown', e => {
+        if (busy) return;
+        active = true; startX = e.clientX; startY = e.clientY; dx = 0;
+        card.classList.add('dragging');
+        card.setPointerCapture(e.pointerId);
+      });
+      card.addEventListener('pointermove', e => {
+        if (!active) return;
+        dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        card.style.transform = `translate3d(${dx}px, ${dy * 0.3}px, 0) rotate(${dx * 0.06}deg)`;
+        like.style.opacity = dx > 30 ? Math.min(dx / 100, 1) : 0;
+        pass.style.opacity = dx < -30 ? Math.min(-dx / 100, 1) : 0;
+      });
+      const end = () => {
+        if (!active) return;
+        active = false;
+        card.classList.remove('dragging');
+        if (dx > 110) completeSwipe(card, 'right');
+        else if (dx < -110) completeSwipe(card, 'left');
+        else { card.style.transform = ''; like.style.opacity = 0; pass.style.opacity = 0; }
+      };
+      card.addEventListener('pointerup', end);
+      card.addEventListener('pointercancel', end);
+    }
+
+    function triggerSwipe(dir) {
+      const top = $('cardStack').querySelector('[data-top="1"]');
+      if (top) completeSwipe(top, dir);
+    }
+
+    async function completeSwipe(card, dir) {
+      if (busy) return;
+      const p = deck[idx];
+      if (!p) return;
+      busy = true;
+      const liked = dir === 'right';
+      card.classList.remove('dragging');
+      card.style.transform = `translate3d(${(liked ? 1 : -1) * window.innerWidth}px, 0, 0) rotate(${liked ? 30 : -30}deg)`;
+      card.style.opacity = '0';
+
+      const { error } = await sb.from('swipes').insert({ swiper: me.id, target: p.id, liked });
+      if (error && error.code !== '23505') {
+        showToast(error.message);
+        card.style.transform = ''; card.style.opacity = '1';
+        busy = false;
+        return;
+      }
+      await sleep(200);
+      idx++;
+      busy = false;
+      renderDeck();
+
+      if (liked) {
+        const { data } = await sb.from('my_matches').select('match_id').eq('user_id', p.id).maybeSingle();
+        if (data) { await loadMatches(); showMatchOverlay(p); }
+        else showToast('You liked ' + p.name);
+      }
+    }
+
+    function reportCurrent() {
+      const p = deck[idx];
+      if (!p) { showToast('No profile on screen'); return; }
+      openSafety(p.id, p.name);
+    }
+
+    // ---------- filters ----------
+    function openFilters() {
+      $('fSameCity').checked = filters.sameCity;
+      $('fGender').value = filters.gender;
+      $('fMin').value = filters.minAge; $('fMax').value = filters.maxAge;
+      $('fStatus').value = filters.status;
+      openModal('filterModal');
+    }
+    function applyFilters() {
+      const min = parseInt($('fMin').value, 10) || 18, max = parseInt($('fMax').value, 10) || 70;
+      if (min < 18) { showToast('Minimum age is 18'); return; }
+      if (min > max) { showToast('Minimum age is higher than maximum'); return; }
+      filters = { sameCity: $('fSameCity').checked, gender: $('fGender').value, minAge: min, maxAge: max, status: $('fStatus').value };
+      saveFilters();
+      closeModal('filterModal');
+      loadDeck();
+    }
+
+    // ============================================================
+    // MATCHES + CHAT
+    // ============================================================
+    function switchTab(tab) {
+      ['cards', 'matches', 'chat'].forEach(t => $(t + 'View').classList.toggle('hidden', t !== tab));
+      const nav = on => 'flex flex-col items-center py-1 transition-colors font-medium text-xs relative ' + (on ? 'text-matteBrown' : 'text-matteBrown/60');
+      $('tabCardsBtn').className = nav(tab === 'cards');
+      $('tabMatchesBtn').className = nav(tab !== 'cards');
+      if (tab !== 'chat' && chat) closeChat();
+      if (tab === 'matches') loadMatches();
+    }
+
+    async function loadMatches() {
+      const { data, error } = await sb.from('my_matches').select('*').order('created_at', { ascending: false });
+      if (error) { showToast(error.message); return; }
+      matches = data || [];
+      renderMatches();
+    }
+
+    function renderMatches() {
+      const badge = $('matchBadge');
+      badge.textContent = matches.length;
+      badge.classList.toggle('hidden', matches.length === 0);
+      const list = $('matchesList');
+      if (!matches.length) {
+        list.innerHTML = `<div class="text-center py-12 text-matteBrown/60"><i class="fa-regular fa-comments text-3xl mb-2"></i><p class="text-xs">No matches yet. Keep swiping to meet fellow coeliacs!</p></div>`;
+        return;
+      }
+      list.innerHTML = matches.map((m, i) => `
+        <div data-i="${i}" class="flex items-center space-x-3 p-3 bg-beige-100 rounded-xl border border-beige-200 cursor-pointer hover:bg-beige-200/60 transition-colors">
+          <div class="w-12 h-12 rounded-full overflow-hidden shrink-0 border border-beige-300"><img src="${esc(safeImg(m.photo_url))}" alt="" class="w-full h-full object-cover"></div>
+          <div class="flex-1 overflow-hidden">
+            <h4 class="font-heading text-sm font-bold text-softBlack truncate">${esc(m.name)}, ${esc(m.age)}</h4>
+            <p class="text-xs text-softBlack/70 truncate">${m.last_message ? esc(m.last_message) : 'New match. Say hello!'}</p>
+          </div>
+        </div>`).join('');
+    }
+    $('matchesList').addEventListener('click', e => {
+      const el = e.target.closest('[data-i]');
+      if (el) openChat(matches[+el.dataset.i]);
+    });
+
+    async function openChat(m) {
+      if (!m) return;
+      closeChat();
+      chat = m; seenMsgs = new Set();
+      $('chatName').textContent = m.name;
+      $('chatAvatar').src = safeImg(m.photo_url);
+      $('chatMsgs').innerHTML = '';
+      switchTab('chat');
+      const { data, error } = await sb.from('messages').select('*').eq('match_id', m.match_id).order('created_at', { ascending: true }).limit(200);
+      if (error) { showToast(error.message); return; }
+      (data || []).forEach(addMsg);
+      chatChannel = sb.channel('chat-' + m.match_id)
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: 'match_id=eq.' + m.match_id }, pl => addMsg(pl.new))
+        .subscribe();
+    }
+
+    function addMsg(msg) {
+      if (seenMsgs.has(msg.id)) return;
+      seenMsgs.add(msg.id);
+      const mine = msg.sender === me.id;
+      const row = document.createElement('div');
+      row.className = 'flex ' + (mine ? 'justify-end' : 'justify-start');
+      const bubble = document.createElement('div');
+      bubble.className = 'max-w-[78%] px-3 py-2 rounded-2xl text-sm whitespace-pre-wrap break-words ' + (mine ? 'bg-matteGreen text-white rounded-br-sm' : 'bg-beige-200 text-softBlack rounded-bl-sm');
+      bubble.textContent = msg.body;   // textContent, never innerHTML
+      row.appendChild(bubble);
+      const box = $('chatMsgs');
+      box.appendChild(row);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    async function sendMsg(e) {
+      e.preventDefault();
+      const input = $('chatInput');
+      const body = input.value.trim();
+      if (!body || !chat) return;
+      input.value = '';
+      const { data, error } = await sb.from('messages').insert({ match_id: chat.match_id, sender: me.id, body }).select().single();
+      if (error) { showToast(error.message); input.value = body; return; }
+      addMsg(data);
+    }
+
+    function closeChat() {
+      if (chatChannel && sb) { sb.removeChannel(chatChannel); }
+      chatChannel = null; chat = null;
+    }
+    function reportChat() { if (chat) openSafety(chat.user_id, chat.name); }
+
+    function showMatchOverlay(p) {
+      matchedProfile = p;
+      $('matchUserImg').src = safeImg(p.photo_url);
+      $('currentUserImg').src = safeImg(me.photo_url);
+      $('matchText').textContent = 'You and ' + p.name + ' liked each other.';
+      const o = $('matchOverlay');
+      o.classList.remove('hidden');
+      setTimeout(() => o.classList.remove('opacity-0'), 10);
+    }
+    function closeMatchOverlay() {
+      const o = $('matchOverlay');
+      o.classList.add('opacity-0');
+      setTimeout(() => o.classList.add('hidden'), 300);
+    }
+    function openChatFromMatch() {
+      closeMatchOverlay();
+      const m = matchedProfile && matches.find(x => x.user_id === matchedProfile.id);
+      if (m) openChat(m); else switchTab('matches');
+    }
+
+    // ============================================================
+    // SAFETY: report + block
+    // ============================================================
+    function openSafety(userId, name) {
+      safetyTarget = { userId, name };
+      $('safetyName').textContent = name;
+      $('reportReason').selectedIndex = 0;
+      $('reportDetails').value = '';
+      openModal('safetyModal');
+    }
+    async function submitReport() {
+      if (!safetyTarget) return;
+      const reason = ($('reportReason').value + ': ' + $('reportDetails').value.trim()).slice(0, 500);
+      const { error } = await sb.from('reports').insert({ reporter: me.id, reported: safetyTarget.userId, reason });
+      if (error) { showToast(error.message); return; }
+      closeModal('safetyModal');
+      showToast('Report sent. Thank you.');
+    }
+    async function blockUser() {
+      if (!safetyTarget) return;
+      if (!confirm('Block ' + safetyTarget.name + '? You will not see each other again.')) return;
+      const { error } = await sb.from('blocks').insert({ blocker: me.id, blocked: safetyTarget.userId });
+      if (error && error.code !== '23505') { showToast(error.message); return; }
+      closeModal('safetyModal');
+      const wasChat = !!chat;
+      if (wasChat) closeChat();
+      await Promise.all([loadMatches(), loadDeck()]);
+      if (wasChat) switchTab('matches');
+      showToast('Blocked');
+    }
+
+    // ============================================================
+    // START
+    // ============================================================
+    if (!configured) showScreen('setupScreen');
+    else setAuthMode('signin');
+  </script>
+</body>
+</html>
